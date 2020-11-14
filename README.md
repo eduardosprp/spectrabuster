@@ -6,11 +6,11 @@ The only requirements are [python-seabreeze](https://github.com/ap--/python-seab
 
 # Usage
 ## Examples
-Acquiring a new spectrum with the first spectrometer found by python-seabreeze, with integration time of 10 ms, plot it, then save it to a gnuplot-compatible file:
+Acquiring a new spectrum with the first spectrometer found by python-seabreeze, with integration time of 10 ms and with wavelengths between 250.0 and 800.0 nm, plot it, then save it to a gnuplot-compatible file:
 ```
 import spectrabuster
 from matplotlib import pyplot
-intenS = Spectrum(int_time=10*1000)
+intenS = Spectrum(int_time=10*1000, from_index=250.0, to_index=800.0)
 
 # intenS.Spectrum returns a tuple of the wavelengths and intensities
 plt.plot(*intenS.spectrum)
@@ -19,6 +19,17 @@ plt.show()
 intenS.write_to_file("intenS.dat")
 ```
 
+Loading spectral irradiance calibration from file, acquiring regular and dark intensities, applying the calibration and checking a specific wavelength:
+```
+import spectrabuster
+R = Spectrum.from_file("R.dat")
+intenD = Spectrum() # measures the spectrum with previously defined integration time
+intenS = Spectrum() - intenD
+
+spectral_irrad = [inten/R[i] for inten, i in enumerate(intenS) if intenS.wavelengths[i] == R.wavelengths[i]]
+
+print(spectral_irrad[535.0])
+```
 ## Documentation
 Coming eventually. For the moment you can simply read the comment paragraphs explaining what each function does.
 
