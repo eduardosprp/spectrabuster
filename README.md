@@ -6,6 +6,18 @@ The only requirements are [python-seabreeze](https://github.com/ap--/python-seab
 
 # Usage
 ## Examples
+Acquiring a new spectrum with the first spectrometer found by python-seabreeze, with integration time of 10 ms, plot it, then save it to a gnuplot-compatible file:
+```
+import spectrabuster
+from matplotlib import pyplot
+intenS = Spectrum(int_time=10*1000)
+
+# intenS.Spectrum returns a tuple of the wavelengths and intensities
+plt.plot(*intenS.spectrum)
+plt.show()
+
+intenS.write_to_file("intenS.dat")
+```
 
 ## Documentation
 Coming eventually. For the moment you can simply read the comment paragraphs explaining what each function does.
