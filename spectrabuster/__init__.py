@@ -1,1 +1,1 @@
-from Spectrum import Spectrum
+from spectrabuster.Spectrum import Spectrum

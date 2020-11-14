@@ -11,8 +11,8 @@ pip3 install git+https://github.com/eduardosprp/spectrabuster.git
 ## Examples
 Acquiring a new spectrum with the first spectrometer found by python-seabreeze, with integration time of 10 ms and with wavelengths between 250.0 and 800.0 nm, plot it, then save it to a gnuplot-compatible file:
 ```
-import spectrabuster
-from matplotlib import pyplot
+from spectrabuster import Spectrum
+from matplotlib import pyplot as plt
 intenS = Spectrum(int_time=10*1000, from_index=250.0, to_index=800.0)
 
 # intenS.Spectrum returns a tuple of the wavelengths and intensities
@@ -24,7 +24,7 @@ intenS.write_to_file("intenS.dat")
 
 Loading spectral irradiance calibration from file, acquiring regular and dark intensities, applying the calibration and checking a specific wavelength:
 ```
-import spectrabuster
+from spectrabuster import Spectrum
 R = Spectrum.from_file("R.dat")
 intenD = Spectrum() # measures the spectrum with previously defined integration time
 intenS = Spectrum() - intenD
