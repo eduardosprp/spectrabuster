@@ -9,7 +9,7 @@ setup(
     # Needed to actually package something
     packages=['spectrabuster'],
     # Needed for dependencies
-    install_requires=['numpy'],['seabreeze']
+    install_requires=['numpy', 'seabreeze'],
     # *strongly* suggested for sharing
     version='0.1',
     # The license can be anything you like

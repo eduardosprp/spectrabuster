@@ -183,7 +183,7 @@ class Spectrum(object):
             to_index = self.find_wavel_index(self._wavel, to_index)
         elif type(to_index) == int:    # assumes the value is a proper index if it is an integer
             if abs(to_index) > self._wavel.size:
-                raise IndexError("Invalid index of {} for wavelength array of size {}".format(index_from, self._wavel.size))
+                raise IndexError("Invalid index of {} for wavelength array of size {}".format(from_index, self._wavel.size))
         elif type(to_index) == str:
             try:
                 float(to_index)
