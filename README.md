@@ -1,5 +1,5 @@
 # spectrabuster
-Basically consists of the Spectrum class, which provides an easy way to abtract away much of the overhead associated with dealing with large quantities of irradiance spectrums. It is meant primarily to be scalable and easy to use.
+Tools for simplifying the processing and storing of spectrums acquired using python-seabreeze. Basically consists of the Spectrum class, which provides an easy way to abtract away much of the overhead associated with dealing with large quantities of irradiance spectrums. It is meant primarily to be scalable and easy to use.
 
 # Installation
 The only requirements are [python-seabreeze](https://github.com/ap--/python-seabreeze) and numpy (which is a requirement of python-seabreeze anyway). Installing matplotlib is not required, but useful if you wish to plot your spectrums and run most of the examples.
