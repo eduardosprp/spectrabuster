@@ -3,6 +3,9 @@ Tools for simplifying the processing and storing of spectrums acquired using pyt
 
 # Installation
 The only requirements are [python-seabreeze](https://github.com/ap--/python-seabreeze) and numpy (which is a requirement of python-seabreeze anyway). Installing matplotlib is not required, but useful if you wish to plot your spectrums and run most of the examples.
+```
+pip3 install git+https://github.com/eduardosprp/spectrabuster.git
+```
 
 # Usage
 ## Examples
