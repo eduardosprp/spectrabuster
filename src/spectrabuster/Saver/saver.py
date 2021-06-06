@@ -4,6 +4,7 @@ from matplotlib import dates as mdates
 import numpy as np
 import os
 
+
 class Saver(object):
 
     """
@@ -13,7 +14,7 @@ class Saver(object):
     """
 
     def __init__(self, prefix, path="./"):
-# {{{
+        # {{{
         self.prefix = prefix
         self.path = path
 
@@ -21,19 +22,23 @@ class Saver(object):
         self.today_string = self.today.strftime("%d-%m-%Y")
 
         self.full_path = f"{path}{prefix}.dat"
-        
+
         self.x = []
         self.y = []
 
-        if os.path.isfile(self.full_path) and Saver._get_file_date(self.full_path) == self.today_string:
+        if (
+            os.path.isfile(self.full_path)
+            and Saver._get_file_date(self.full_path) == self.today_string
+        ):
             self.x, self.y, _ = Saver._read_file(self.full_path, self.today)
         else:
             date_comment = f"# date = {self.today_string}"
-            Saver._write_value(self.full_path, 'w', date_comment)
-# }}}
+            Saver._write_value(self.full_path, "w", date_comment)
+
+    # }}}
 
     def add(self, *value):
-# {{{
+        # {{{
         """
         Adds a value to the file. Creates a new file if the day has changed. Also
         stores an array of the values saved that day, in order to plot the cummulative
@@ -52,7 +57,7 @@ class Saver(object):
             self.x.append(now)
             self.y.append(value)
 
-            Saver._write_value(self.full_path, 'a', now_string, *value)
+            Saver._write_value(self.full_path, "a", now_string, *value)
 
         else:
             self.today = date.today()
@@ -62,13 +67,13 @@ class Saver(object):
             self.y = [value]
 
             date_comment = f"# date = {self.today_string}"
-            Saver._write_value(self.full_path, 'w', date_comment)
+            Saver._write_value(self.full_path, "w", date_comment)
 
-# }}}
+    # }}}
 
     @staticmethod
     def _write_value(path, mode, col1_val, *values):
-# {{{
+        # {{{
         """
         Internal method to write values to a file in a columns format.
         Will write as many columns as there are values.
@@ -81,10 +86,11 @@ class Saver(object):
                 arq.write(f"\t{value}")
 
             arq.write(f"\n")
-# }}}
 
-    def save_plot(self, style='-', title="", xlabel=None, ylabel=None, prefix=None):
-# {{{
+    # }}}
+
+    def save_plot(self, style="-", title="", xlabel=None, ylabel=None, prefix=None):
+        # {{{
         """
         Stores the plot of the data collected up to now.
         """
@@ -112,11 +118,12 @@ class Saver(object):
 
         fig.savefig(self.fig_full_path)
         plt.close(fig)
-# }}}
+
+    # }}}
 
     @staticmethod
     def _read_file(path, today):
-# {{{
+        # {{{
 
         """
         Reads a file and return the values in its columns as arrays. Used
@@ -127,13 +134,13 @@ class Saver(object):
         col1 = []
         col2 = []
         year, month, day = today.year, today.month, today.day
-        
-        with open(path, 'r') as arq:
+
+        with open(path, "r") as arq:
 
             gen_lines = (line.split() for line in arq)
 
             for line_split in gen_lines:
-                if line_split[0] == '#':
+                if line_split[0] == "#":
                     dict_args[line_split[1]] = line_split[3]
                 else:
                     hour, minute, second = line_split[0].split(":")
@@ -143,33 +150,38 @@ class Saver(object):
                     time_value = datetime(*datetime_tuple)
 
                     col1.append(time_value)
-                    
-                    other_cols = tuple(Saver._try_convert(i, None) for i in line_split[1:])
+
+                    other_cols = tuple(
+                        Saver._try_convert(i, None) for i in line_split[1:]
+                    )
 
                     col2.append(other_cols)
 
         return col1, col2, dict_args
-# }}}
+
+    # }}}
 
     @staticmethod
     def _try_convert(value, default):
-# {{{
+        # {{{
         try:
             return float(value)
         except (ValueError, TypeError):
             return default
-# }}}
+
+    # }}}
 
     @staticmethod
     def _get_file_date(path):
-# {{{
+        # {{{
         try:
             with open(path, "r") as arq:
                 file_date = arq.readline().split()[-1]
             return file_date
         except IndexError:
             return None
-# }}}
+
+    # }}}
 
     def backup(self, path):
         today = datetime.today().strftime("%d-%m-%Y")
@@ -178,4 +190,3 @@ class Saver(object):
         os.system(f"cp {self.fig_full_path} {file-name}.png")
 
     # TODO: implement (more clever) backups
-
