@@ -1,11 +1,11 @@
 import numpy as np
 from time import sleep
-from seabreeze.spectrometers import Spectrometer, list_devices
 from math import exp
 import matplotlib.pyplot as plt
 from scipy.integrate import trapz
 from os import path
 import struct
+import spectrabuster.functions
 from datetime import date, datetime
 
 class Spectrum(object):
