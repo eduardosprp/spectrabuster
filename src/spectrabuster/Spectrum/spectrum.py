@@ -78,13 +78,18 @@ class Spectrum(object):
             if not self.device:
                 """
                 If by this point the spectrometer hasn't been specified, it will use the first
-                one seabreeze finds by default
+                one the backend provides. Aditionally, if the backend hasn't been specified, it'll
+                use none.py by default.
                 """
 
                 if backend is not None:
                     self.backend = import_module(f"spectrabuster.backends.{backend}")
                 else:
-                    self.backend = spectrabuster.functions.get_backend()
+                    try:
+                        self.backend = spectrabuster.functions.get_backend()
+                    except RuntimeError:
+                        self.backend = import_module(f"spectrabuster.backends.none")
+                        print(self.backend.features["measure"])
 
                 self.device = self.backend.first_available_device()
 
@@ -149,6 +154,9 @@ class Spectrum(object):
 
     def _measure_inten(self, correct_nl=None, correct_dc=None, samples=None):
         # {{{
+        if not self.backend.features["measure"]:
+            return []           
+
         if correct_nl is None:
             correct_nl = self.correct_nl
 
@@ -159,7 +167,7 @@ class Spectrum(object):
             samples = self.samples
 
         if self.int_time and (Spectrum._current_int_time != self.int_time):
-            self.device.integration_time_micros(self.int_time)
+            self.device.set_int_time(self.int_time)
             sleep(
                 10
             )  # accounting for the delay of the spectrometer to change its integration time
@@ -170,9 +178,9 @@ class Spectrum(object):
                 f"Invalid value of {self.samples} for the number of samples to average."
             )
 
-        inten_avg = self.device.measure(correct_dc, correct_nl)
+        inten_avg = self.device.measure(correct_dc=correct_dc, correct_nl=correct_nl)
         for i in range(samples - 1):
-            inten_avg += self.device.measure(self.correct_dc, self.correct_nl)
+            inten_avg += self.device.measure(correct_dc=self.correct_dc, correct_nl=self.correct_nl)
         inten_avg /= samples
 
         return inten_avg
@@ -433,7 +441,7 @@ class Spectrum(object):
         if initial is None:
             initial = self.int_time
 
-        min_int_time, max_int_time = self.device.integration_time_micros_limits
+        min_int_time, max_int_time = self.device.int_time_limits()
 
         max_counts = self.device.max_intensity
         target_counts = abs((limits[1] + limits[0]) / 2) * max_counts
@@ -999,15 +1007,3 @@ class Spectrum(object):
     def __len__(self):
         return self.wavelengths.size
 
-
-"""
-Function main() will execute when you run this file directly
-"""
-
-
-def main():
-    print("main fora da classe")  # {{{
-
-
-if __name__ == "__main__":
-    main()  # }}}
