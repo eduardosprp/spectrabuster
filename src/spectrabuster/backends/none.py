@@ -10,15 +10,20 @@ looks for the following features in this dictionary, a False value or the
 absence of a key is interpreted as absence of that feature.
 """
 features = {
+    "measure": False,   # Measuring the intensities spectrum
     "correct_nl": False,  # Correction of non-linearity
     "correct_dc": False,  # Correction of dark counts
     "temperature": False,  # Measurement of the device's temperature
+    "int_time_limits": False,   # Return the device's integration time limits
+    "max_intensity": False, # Return the device's saturation intensity 
 }
 
 
 class Device(object):
+# {{{
     """
-    All of the following methods are required of the Device class.
+    All of the following methods and attributes are required of the Device
+    class.
     """
 
     def measure(self, **kwargs):
@@ -29,6 +34,15 @@ class Device(object):
 
     def set_int_time(self, int_time, **kwargs):
         return None
+
+    @property
+    def int_time_limits(self):
+        return [None, None]
+
+    @property
+    def max_intensity(self):
+        return None
+# }}}
 
 
 """
