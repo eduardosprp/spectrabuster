@@ -3,16 +3,12 @@ from importlib import import_module
 
 def use(name):
     """
-    Tells spectrabuster which backend to use. For the while you can choose
-    either seabreeze for measurements or seatease, for tests without spectrometers
+    Tells spectrabuster which backend to use.
     """
 
     global _backend
 
-    if name in ("seabreeze", "seatease"):
-        _backend = name
-    else:
-        raise ValueError(f"Invalid _backend {name} for spectrabuster")
+    _backend = name
 
 
 def get_backend():

@@ -6,14 +6,16 @@ from scipy.integrate import trapz
 from os import path
 import struct
 import spectrabuster.functions
+from importlib import import_module
 from datetime import date, datetime
 
 
 class Spectrum(object):
 
     """
-    Class variables. Mainly default values that are used whenever their instance counterparts
-    are not specified when initializing a Spectrum object.
+    Class variables. Mainly default values that are used whenever their
+    instance counterparts are not specified when initializing a Spectrum
+    object.
     """
 
     # {{{
@@ -51,6 +53,7 @@ class Spectrum(object):
         from_index=None,
         to_index=None,
         intensities=None,
+        backend=None,
         **kwargs,
     ):
         # {{{
@@ -61,11 +64,6 @@ class Spectrum(object):
 
         if device is not None:
             self.device = device
-
-            if not isinstance(self.device, Spectrometer):
-                raise TypeError(
-                    f"Invalid object of type {type(self.device)} passed as the device. Please enter a seabreeze Spectrometer instance."
-                )
 
         if wavelengths is not None:
             if isinstance(wavelengths, (np.ndarray, list, tuple)):
@@ -83,15 +81,13 @@ class Spectrum(object):
                 one seabreeze finds by default
                 """
 
-                if list_devices():
-                    self.device = Spectrometer(list_devices()[0])
+                if backend is not None:
+                    self.backend = import_module(f"spectrabuster.backends.{backend}")
                 else:
-                    raise RuntimeError("No spectrometers found.")
-                self._warn(
-                    "No spectrometer object passed. Using {} by default.".format(
-                        self.device
-                    )
-                )
+                    self.backend = spectrabuster.functions.get_backend()
+
+                self.device = self.backend.first_available_device()
+
 
             self._wavel = np.array(self.device.wavelengths())
             self._warn(
@@ -174,9 +170,9 @@ class Spectrum(object):
                 f"Invalid value of {self.samples} for the number of samples to average."
             )
 
-        inten_avg = self.device.intensities(correct_dc, correct_nl)
+        inten_avg = self.device.measure(correct_dc, correct_nl)
         for i in range(samples - 1):
-            inten_avg += self.device.intensities(self.correct_dc, self.correct_nl)
+            inten_avg += self.device.measure(self.correct_dc, self.correct_nl)
         inten_avg /= samples
 
         return inten_avg
@@ -332,11 +328,11 @@ class Spectrum(object):
     def to_spectral_irrad(self, calibration_file=None, int_time=None):
         # {{{
         """
-        Applies the spectral irradiance calibration and returns another Spectrum
-        object for the irradiance spectrum.
+        Applies the spectral irradiance calibration and returns another
+        Spectrum object for the irradiance spectrum.
 
-        It also has to be a file with the wavelengths and spectral sensitivity, by
-        the way.
+        It also has to be a file with the wavelengths and spectral sensitivity,
+        by the way.
         """
 
         if not calibration_file:
@@ -426,12 +422,12 @@ class Spectrum(object):
     def optimize_int_time(self, initial=None, limits=(0.8, 1), max_tries=5):
         # {{{
         """
-        Attemps to find an integration time that maximizes signal to noise ratio
-        while avoiding sensor saturation.
+        Attemps to find an integration time that maximizes signal to noise
+        ratio while avoiding sensor saturation.
 
-        This could probably be done more elegantly with recursion, but I haven't
-        got time to think about that. Also BEWARE that this will overwrite the
-        current spectrum.
+        This could probably be done more elegantly with recursion, but I
+        haven't got time to think about that. Also BEWARE that this will
+        overwrite the current spectrum.
         """
 
         if initial is None:
@@ -480,8 +476,8 @@ class Spectrum(object):
     def join(self, other):
         # {{{
         """
-        Joins two spectra. It will give preference to itself when resolving overlaps.
-        Probably one of the first functions to get a rewrite.
+        Joins two spectra. It will give preference to itself when resolving
+        overlaps. Probably one of the first functions to get a rewrite.
         """
 
         if not isinstance(other, Spectrum):
@@ -609,10 +605,10 @@ class Spectrum(object):
     def from_file(cls, inten_wavel_file=None, **kwargs):
         # {{{
         """
-        Creates a spectrum instance with the wavelengths and/or intensities read
-        from a text file. Additionally, it looks for key-word arguments at the first
-        few lines of the file. If the same kwargs are passed to this function, they
-        take precedence.
+        Creates a spectrum instance with the wavelengths and/or intensities
+        read from a text file. Additionally, it looks for key-word arguments at
+        the first few lines of the file. If the same kwargs are passed to this
+        function, they take precedence.
         """
 
         wavel_file = kwargs["wavel_file"] if "wavel_file" in kwargs else None
