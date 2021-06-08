@@ -34,7 +34,7 @@ class Spectrum(object):
     UV_index = None
     # }}}
 
-    def __init__(self, **kwargs):
+    def __init__(self, int_time=None, **kwargs):
         # {{{
         """
         Initializes the Spectrum with the values specified by kwargs. Absence
@@ -71,12 +71,13 @@ class Spectrum(object):
         self.correct_nl = kwargs["correct_nl"] if "correct_nl" in kwargs else False
         self.correct_dc = kwargs["correct_dc"] if "correct_dc" in kwargs else False
         self.samples = kwargs["samples"] if "samples" in kwargs else None
+        self.int_time = int_time
         self.int_time = kwargs["int_time"] if "int_time" in kwargs else None
 
         # Then the wavelengths and the intensities. It'll get each from the
         # device unless provided at the instantiation.
         if "wavelengths" in kwargs:
-            self.wavel = np.ndarray(kwargs["wavelengths"])
+            self.wavel = np.array(kwargs["wavelengths"])
         elif self.backend.features["measure"]:
             self.wavel = self.device.wavelengths()
         else:
@@ -85,7 +86,7 @@ class Spectrum(object):
             )
 
         if "intensities" in kwargs:
-            self.inten = np.ndarray(kwargs["intensities"])
+            self.inten = np.array(kwargs["intensities"])
         elif self.backend.features["measure"]:
             self.inten = self.measure_inten()
         else:
@@ -147,11 +148,6 @@ class Spectrum(object):
                     f"File {file_path} already exists. Pass 'overwrite=True' if you are sure you want to overwrite it."
                 )
 
-        # set this kwarg to True if you wish to store the entire wavelengths and intensities array,
-        # as opposed to just the array delimited by from_index and to_index
-        entire_spectrum = (
-            kwargs["entire_spectrum"] if "entire_spectrum" in kwargs else False
-        )
         only_wavelengths = (
             kwargs["only_wavelengths"] if "only_wavelengths" in kwargs else False
         )
@@ -160,16 +156,10 @@ class Spectrum(object):
         )
 
         to_save = self.to_save  # fields that will be written to the file
-        if (
-            entire_spectrum
-        ):  # will only write these fields if entire_spectrum is set to True
-            to_save = to_save.union({"from_index", "to_index"})
 
         if not file_path or not isinstance(file_path, str):
-            raise (
-                ValueError(
-                    "Please pass a string as the file path wherein to save the spectrum."
-                )
+            raise ValueError(
+                "Please pass a string as the file path wherein to save the spectrum."
             )
 
         with open(file_path, "w+") as arq:
@@ -181,91 +171,15 @@ class Spectrum(object):
             arq.writelines(gen_comments)
 
             if only_wavelengths:
-                if entire_spectrum:
-                    gen_wavel_inten = (f"{wavel}\n" for wavel in self._wavel)
-                else:
-                    gen_wavel_inten = (f"{wavel}\n" for wavel in self.wavelengths)
+                gen_wavel_inten = (f"{wavel}\n" for wavel in self.wavel)
             elif only_intensities:
-                if entire_spectrum:
-                    gen_wavel_inten = (f"{inten}\n" for inten in self._inten)
-                else:
-                    gen_wavel_inten = (f"{inten}\n" for inten in self.intensities)
+                gen_wavel_inten = (f"{inten}\n" for inten in self.inten)
             else:
-                if entire_spectrum:
-                    gen_wavel_inten = (
-                        f"{wavel}\t{inten}\n" for wavel, inten in zip(*self._spec)
-                    )
-                else:
-                    gen_wavel_inten = (
-                        f"{wavel}\t{inten}\n" for wavel, inten in zip(*self.spectrum)
-                    )
+                gen_wavel_inten = (
+                    f"{wavel}\t{inten}\n" for wavel, inten in zip(*self.spectrum)
+                )
 
             arq.writelines(gen_wavel_inten)
-
-    # }}}
-
-    def set_wavel_slice(self):
-        # {{{
-        from_index = self.from_index if self.from_index else None
-        to_index = self.to_index if self.to_index else None
-
-        if type(from_index) in (
-            float,
-            np.float64,
-        ):  # assumes the value is a wavelength if it has a decimal point
-            from_index = self.find_wavel_index(self._wavel, from_index)
-        elif (
-            type(from_index) == int
-        ):  # assumes the value is a proper index if it is an integer
-            if abs(from_index) > self._wavel.size:
-                raise IndexError(
-                    "Invalid index of {} for wavelength array of size {}".format(
-                        from_index, self._wavel.size
-                    )
-                )
-        elif type(from_index) == str:
-            try:
-                float(from_index)
-            except ValueError:
-                raise TypeError(
-                    "Invalid type of {} for wavelength index. Please enter either a float for a wavelength or an integer for a proper index.".format(
-                        from_index
-                    )
-                )
-            if "." in from_index:
-                from_index = self.find_wavel_index(self._wavel, float(from_index))
-            else:
-                from_index = int(from_index)
-
-        if type(to_index) in (
-            float,
-            np.float64,
-        ):  # assumes the value is a wavelength if it has a decimal point
-            to_index = self.find_wavel_index(self._wavel, to_index) + 1
-        elif (
-            type(to_index) == int
-        ):  # assumes the value is a proper index if it is an integer
-            if abs(to_index) > self._wavel.size:
-                raise IndexError(
-                    "Invalid index of {} for wavelength array of size {}".format(
-                        from_index, self._wavel.size
-                    )
-                )
-        elif type(to_index) == str:
-            try:
-                float(to_index)
-            except ValueError:
-                raise TypeError(
-                    "Invalid type of {} for wavelength index. Please enter either a float for a wavelength or an integer for a proper index.".format(
-                        to_index
-                    )
-                )
-            if "." in to_index:
-                to_index = self.find_wavel_index(self._wavel, float(to_index)) + 1
-            else:
-                to_index = int(to_index)
-
-        self.wavel_slice = slice(from_index, to_index)
 
     # }}}
 
@@ -509,14 +423,11 @@ class Spectrum(object):
 
     # }}}
 
+    # Esse um é para que o animal lembre de consertar quando saporra
+    # inevitavelmente der erro
     @property
-    def max_counts(self):
-        return self.device.max_intensity
-
-    @property
-    def biggest_count(self):
-        # puta que pariu esses nomes...
-        return np.amax(self.intensities)
+    def max_counts1(self):
+        return np.amax(self.inten)
 
     @property
     def uv(self):
@@ -528,10 +439,6 @@ class Spectrum(object):
             return self.calc_uv_index()
 
     # }}}
-
-    @property
-    def _spec(self):
-        return self._wavel, self._inten
 
     @property
     def spectrum(self):
@@ -553,6 +460,9 @@ class Spectrum(object):
         read from a text file. Additionally, it looks for key-word arguments at
         the first few lines of the file. If the same kwargs are passed to this
         function, they take precedence.
+
+        When retrieving a Spectrum from a file, it will always be assigned the
+        backend 'none'.
         """
 
         wavel_file = kwargs["wavel_file"] if "wavel_file" in kwargs else None
@@ -582,6 +492,9 @@ class Spectrum(object):
 
         new_kwargs["intensities"] = inten_array
         new_kwargs["wavelengths"] = wavel_array
+        # The backend 'none' will always be used when loading a
+        # Spectrum from a file
+        new_kwargs["backend"] = "none"
         new_kwargs.update(kwargs)
 
         return cls(**new_kwargs)
@@ -709,7 +622,7 @@ class Spectrum(object):
                 else:
                     new_indices.append(index)
             elif type(index) in (float, np.float64) or literal is False:
-                index_wavel = Spectrum.find_wavel_index(wavel, wavel[index])
+                index_wavel = Spectrum.find_wavel_index(wavel, index)
                 new_indices.append(index_wavel)
 
         array_slice = slice(new_indices[0], new_indices[1])
@@ -724,8 +637,7 @@ class Spectrum(object):
         Warnings can be disabled by setting the class variable 'opt_warnings' to False
         """
 
-        if Spectrum.opt_warnings:
-            print(string)
+        print(string)
 
     # }}}
 
