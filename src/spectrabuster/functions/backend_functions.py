@@ -36,7 +36,7 @@ def check_backend(name):
     Checks whether a backend exists and can be imported.
     """
 
-    check = find_spec(name, package="spectrabuster.backends")
+    check = find_spec(f"spectrabuster.backends.{name}")
 
     if check is None:
         raise NameError(

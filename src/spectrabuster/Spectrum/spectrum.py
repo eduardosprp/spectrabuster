@@ -20,18 +20,6 @@ class Spectrum(object):
     """
 
     # {{{
-    device = None  # will use the first spectrometer seabreeze finds by default
-    correct_nl = False  # correct non-linearity
-    correct_dc = False  # correct dark counts
-    int_time = None  # integration time in microseconds
-    inten = None  # intensities for internal use
-    wavel = None  # wavelengths for internal use
-    from_index = None
-    to_index = None
-    wavel_slice = None
-    opt_warnings = True  # determines whether or not to show warnings
-    _current_int_time = None  # keeps track of the integration time most recently set in the spectrometer
-    calibration_file = None  # the default calibration file with which to obtain the irradiance spectrum
     to_save = {
         "int_time",
         "correct_nl",
@@ -47,12 +35,12 @@ class Spectrum(object):
     # }}}
 
     def __init__(self, **kwargs):
-    # {{{
+        # {{{
         """
         Initializes the Spectrum with the values specified by kwargs. Absence
         of a key results in the attribute taking a default value.
         """
-        
+
         # First of all, define a backend
         backend = kwargs["backend"] if "backend" in kwargs else None
         try:
@@ -91,20 +79,29 @@ class Spectrum(object):
             self.wavel = np.ndarray(kwargs["wavelengths"])
         elif self.backend.features["measure"]:
             self.wavel = self.device.wavelengths()
+        else:
+            raise RuntimeError(
+                f"No wavelengths array passed, and the {self.backend} cannot make measurements."
+            )
 
         if "intensities" in kwargs:
             self.inten = np.ndarray(kwargs["intensities"])
         elif self.backend.features["measure"]:
             self.inten = self.measure_inten()
+        else:
+            raise RuntimeError(
+                f"No intensities array passed, and the {self.backend} cannot make masurements."
+            )
 
         # Finally, slice the intensities and wavelengths arrays.
-        self.wavel, self.inten, self.slice = self.slice_array(self.wavel, 
-                                                              self.inten, 
-                                                              (self.from_index, self.to_index))
+        self.wavel, self.inten, self.slice = self.slice_array(
+            self.wavel, self.inten, (self.from_index, self.to_index)
+        )
+
     # }}}
 
     def measure_inten(self, int_time=None, samples=None, **kwargs):
-    # {{{
+        # {{{
         samples = samples if samples is not None else self.samples
         int_time = int_time if int_time is not None else self.int_time
         correct_dc = kwargs["correct_dc"] if "correct_dc" in kwargs else self.correct_dc
@@ -122,14 +119,15 @@ class Spectrum(object):
         elif int_time is None:
             pass
         else:
-            raise TypeError(
-                f"Invalid type {type(int_time)} for the integration time."
-            )
+            raise TypeError(f"Invalid type {type(int_time)} for the integration time.")
 
-        measure = partial(self.device.measure, correct_dc=correct_dc, correct_nl=correct_nl)
+        measure = partial(
+            self.device.measure, correct_dc=correct_dc, correct_nl=correct_nl
+        )
         inten_avg = np.average([measure() for i in range(samples)], axis=0)
 
         return inten_avg
+
     # }}}
 
     def write_to_file(self, file_path=None, save_fields=True, **kwargs):
@@ -680,10 +678,10 @@ class Spectrum(object):
 
     @staticmethod
     def slice_array(wavel, inten, indices, **kwargs):
-    # {{{
+        # {{{
         """
         Takes in two arrays and returns them sliced according to
-        indices=(from_index, to_index). 
+        indices=(from_index, to_index).
 
         If the indeces are integers, it takes them to be literal indeces for the
         array. If they are floats, then it'll assume they are wavelengths whose
@@ -692,13 +690,11 @@ class Spectrum(object):
         This behaviour can be overriden by passing literal_indices=True or False
         """
 
-        literal = kwargs['literal'] if 'literal' in kwargs else None
+        literal = kwargs["literal"] if "literal" in kwargs else None
         len_array = len(wavel)
 
         if len(inten) != len_array:
-            raise ValueError(
-                "The arrays must be of equal length."
-            )
+            raise ValueError("The arrays must be of equal length.")
 
         new_indices = []
 
@@ -718,6 +714,7 @@ class Spectrum(object):
 
         array_slice = slice(new_indices[0], new_indices[1])
         return wavel[array_slice], inten[array_slice], array_slice
+
     # }}}
 
     @staticmethod
@@ -986,4 +983,3 @@ class Spectrum(object):
 
     def __len__(self):
         return self.wavelengths.size
-
