@@ -2,12 +2,12 @@ from seatease.spectrometers import Spectrometer, list_devices
 from time import sleep
 
 features = {
-    "measure": True
+    "measure": True,
     "correct_nl": False,
     "correct_dc": False,
     "temperature": False,
     "int_time_limits": True,
-    "max_intensity": True,
+    "sat_intensity": True,
 }
 
 
@@ -44,7 +44,7 @@ class Device(object):
         return self._device.integration_time_micros_limits
 
     @property
-    def max_intensity(self):
+    def sat_intensity(self):
         return self._device.max_intensity
 # }}}
 

@@ -10,7 +10,7 @@ features = {
     "correct_dc": True,
     "temperature": True,
     "int_time_limits": True,
-    "max_intensity": True,
+    "sat_intensity": True,
 }
 
 
@@ -35,7 +35,7 @@ class Device(object):
     def wavelengths(self, **kwargs):
         return self._device.wavelengths()
 
-    def set_int_time(self, int_time, sleep_time=0, **kwargs):
+    def set_int_time(self, int_time, sleep_time=5, **kwargs):
         self._device.integration_time_micros(int_time)
 
         # This is to account for the delay involved in changing
@@ -47,7 +47,7 @@ class Device(object):
         return self._device.integration_time_micros_limits
 
     @property
-    def max_intensity(self):
+    def sat_intensity(self):
         return self._device.max_intensity
 
     @property

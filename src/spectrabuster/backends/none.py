@@ -7,7 +7,7 @@ implementing your own backends.
 """
 Every backend must contain a dictionary listing of its features. Spectrabuster
 looks for the following features in this dictionary, a False value or the
-absence of a key is interpreted as absence of that feature.
+absence of a key is interpreted as absence of that feature:
 """
 features = {
     "measure": False,   # Measuring the intensities spectrum
@@ -15,7 +15,7 @@ features = {
     "correct_dc": False,  # Correction of dark counts
     "temperature": False,  # Measurement of the device's temperature
     "int_time_limits": False,   # Return the device's integration time limits
-    "max_intensity": False, # Return the device's saturation intensity 
+    "sat_intensity": False, # Return the device's saturation intensity 
 }
 
 
@@ -37,10 +37,10 @@ class Device(object):
 
     @property
     def int_time_limits(self):
-        return [None, None]
+        return None
 
     @property
-    def max_intensity(self):
+    def sat_intensity(self):
         return None
 # }}}
 

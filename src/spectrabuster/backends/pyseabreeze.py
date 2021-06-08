@@ -5,12 +5,12 @@ from time import sleep
 seabreeze.use("pyseabreeze")
 
 features = {
-    "measure": True
+    "measure": True,
     "correct_nl": True,
     "correct_dc": True,
     "temperature": True,
     "int_time_limits": True,
-    "max_intensity": True,
+    "sat_intensity": True,
 }
 
 
@@ -47,7 +47,7 @@ class Device(object):
         return self._device.integration_time_micros_limits
 
     @property
-    def max_intensity(self):
+    def sat_intensity(self):
         return self._device.max_intensity
 
     @property

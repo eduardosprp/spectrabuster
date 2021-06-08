@@ -5,9 +5,10 @@ import matplotlib.pyplot as plt
 from scipy.integrate import trapz
 from os import path
 import struct
-import spectrabuster.functions
+import spectrabuster.functions as sbf
 from importlib import import_module
 from datetime import date, datetime
+from functools import partial
 
 
 class Spectrum(object):
@@ -23,8 +24,8 @@ class Spectrum(object):
     correct_nl = False  # correct non-linearity
     correct_dc = False  # correct dark counts
     int_time = None  # integration time in microseconds
-    _inten = None  # intensities for internal use
-    _wavel = None  # wavelengths for internal use
+    inten = None  # intensities for internal use
+    wavel = None  # wavelengths for internal use
     from_index = None
     to_index = None
     wavel_slice = None
@@ -45,146 +46,90 @@ class Spectrum(object):
     UV_index = None
     # }}}
 
-    def __init__(
-        self,
-        int_time=None,
-        wavelengths=None,
-        device=None,
-        from_index=None,
-        to_index=None,
-        intensities=None,
-        backend=None,
-        **kwargs,
-    ):
-        # {{{
+    def __init__(self, **kwargs):
+    # {{{
         """
-        Initializes the instance with the default values, unless specified otherwise.
-        If you wish to use all the default values except for a few, specify them with kwargs.
+        Initializes the Spectrum with the values specified by kwargs. Absence
+        of a key results in the attribute taking a default value.
         """
+        
+        # First of all, define a backend
+        backend = kwargs["backend"] if "backend" in kwargs else None
+        try:
+            self.backend = sbf.get_backend(backend)
+        except RuntimeError:
+            self._warn("No backend specified. Using none by default.")
+            self.backend = sbf.get_backend("none")
 
-        if device is not None:
-            self.device = device
-
-        if wavelengths is not None:
-            if isinstance(wavelengths, (np.ndarray, list, tuple)):
-                self._wavel = np.array(wavelengths)
-            else:
-                raise TypeError(
-                    "Invalid type for wavelengths array. Please enter a numpy array, a list, or a tuple."
-                )
+        # Then get the device
+        if "device" in kwargs:
+            self.device = self.backend.Device(kwargs["device"])
         else:
-            # Will use the wavelenghts array provided by the spectrometer by default
+            self.device = self.backend.first_available_device()
 
-            if not self.device:
-                """
-                If by this point the spectrometer hasn't been specified, it will use the first
-                one the backend provides. Aditionally, if the backend hasn't been specified, it'll
-                use none.py by default.
-                """
-
-                if backend is not None:
-                    self.backend = import_module(f"spectrabuster.backends.{backend}")
-                else:
-                    try:
-                        self.backend = spectrabuster.functions.get_backend()
-                    except RuntimeError:
-                        self.backend = import_module(f"spectrabuster.backends.none")
-                        print(self.backend.features["measure"])
-
-                self.device = self.backend.first_available_device()
-
-
-            self._wavel = np.array(self.device.wavelengths())
-            self._warn(
-                "No wavelength array provided. Using the device's wavelength array by default."
-            )
-
-        if int_time is not None:
-            self.int_time = int(int_time)
-
-        if from_index is not None:
-            if isinstance(from_index, (int, float)):
-                self.from_index = from_index
-            else:
-                raise TypeError(
-                    "to_index and from_index must be either integers for proper indexes, or floats, for wavelengths."
-                )
-
-        if to_index is not None:
-            if isinstance(to_index, (int, float)):
-                self.to_index = to_index
-            else:
-                raise TypeError(
-                    "to_index and from_index must be either integers for proper indexes, or floats, for wavelengths."
-                )
-
-        if "correct_nl" in kwargs:
-            self.correct_nl = kwargs["correct_nl"]
-
-        if "correct_dc" in kwargs:
-            self.correct_dc = kwargs["correct_dc"]
-
-        if "UV_index" in kwargs:
-            self.UV_index = kwargs["UV_index"]
-
-        if "samples" in kwargs:
-            self.samples = kwargs["samples"]
-
-        if "capture_date" in kwargs:
-            self.capture_date = kwargs["capture_date"]
+        # Some features of the device
+        if self.backend.features["int_time_limits"]:
+            self.int_time_limits = self.device.int_time_limits
         else:
-            self.capture_date = date.today().strftime("%d-%m-%Y")
-
-        if "capture_time" in kwargs:
-            self.capture_time = kwargs["capture_time"]
+            self.int_time_limits = None
+        if self.backend.features["sat_intensity"]:
+            self.sat_intensity = self.device.sat_intensity
         else:
-            self.capture_time = datetime.now().strftime("%H:%M:%S")
+            self.sat_intensity = None
 
-        if intensities is not None:
-            if isinstance(intensities, (np.ndarray, list, tuple)):
-                self._inten = np.array(intensities)
-            else:
-                raise TypeError(
-                    "Invalid type for intensities array. Please enter an interable type."
-                )
-        else:
-            self._inten = self._measure_inten()
+        # Bunch of optional parameters
+        self.from_index = kwargs["from_index"] if "from_index" in kwargs else None
+        self.to_index = kwargs["to_index"] if "to_index" in kwargs else None
+        self.correct_nl = kwargs["correct_nl"] if "correct_nl" in kwargs else False
+        self.correct_dc = kwargs["correct_dc"] if "correct_dc" in kwargs else False
+        self.samples = kwargs["samples"] if "samples" in kwargs else None
+        self.int_time = kwargs["int_time"] if "int_time" in kwargs else None
 
+        # Then the wavelengths and the intensities. It'll get each from the
+        # device unless provided at the instantiation.
+        if "wavelengths" in kwargs:
+            self.wavel = np.ndarray(kwargs["wavelengths"])
+        elif self.backend.features["measure"]:
+            self.wavel = self.device.wavelengths()
+
+        if "intensities" in kwargs:
+            self.inten = np.ndarray(kwargs["intensities"])
+        elif self.backend.features["measure"]:
+            self.inten = self.measure_inten()
+
+        # Finally, slice the intensities and wavelengths arrays.
+        self.wavel, self.inten, self.slice = self.slice_array(self.wavel, 
+                                                              self.inten, 
+                                                              (self.from_index, self.to_index))
     # }}}
 
-    def _measure_inten(self, correct_nl=None, correct_dc=None, samples=None):
-        # {{{
-        if not self.backend.features["measure"]:
-            return []           
+    def measure_inten(self, int_time=None, samples=None, **kwargs):
+    # {{{
+        samples = samples if samples is not None else self.samples
+        int_time = int_time if int_time is not None else self.int_time
+        correct_dc = kwargs["correct_dc"] if "correct_dc" in kwargs else self.correct_dc
+        correct_nl = kwargs["correct_nl"] if "correct_nl" in kwargs else self.correct_nl
 
-        if correct_nl is None:
-            correct_nl = self.correct_nl
-
-        if correct_dc is None:
-            correct_dc = self.correct_dc
-
-        if not samples:
-            samples = self.samples
-
-        if self.int_time and (Spectrum._current_int_time != self.int_time):
-            self.device.set_int_time(self.int_time)
-            sleep(
-                10
-            )  # accounting for the delay of the spectrometer to change its integration time
-            Spectrum._current_int_time = self.int_time
-
-        if type(self.samples) is not int or self.samples < 0:
+        if samples is None:
+            samples = 1
+        elif type(samples) is not int or samples < 0:
             raise ValueError(
                 f"Invalid value of {self.samples} for the number of samples to average."
             )
 
-        inten_avg = self.device.measure(correct_dc=correct_dc, correct_nl=correct_nl)
-        for i in range(samples - 1):
-            inten_avg += self.device.measure(correct_dc=self.correct_dc, correct_nl=self.correct_nl)
-        inten_avg /= samples
+        if type(int_time) in (float, int):
+            self.device.set_int_time(int_time)
+        elif int_time is None:
+            pass
+        else:
+            raise TypeError(
+                f"Invalid type {type(int_time)} for the integration time."
+            )
+
+        measure = partial(self.device.measure, correct_dc=correct_dc, correct_nl=correct_nl)
+        inten_avg = np.average([measure() for i in range(samples)], axis=0)
 
         return inten_avg
-
     # }}}
 
     def write_to_file(self, file_path=None, save_fields=True, **kwargs):
@@ -325,13 +270,6 @@ class Spectrum(object):
         self.wavel_slice = slice(from_index, to_index)
 
     # }}}
-
-    def get_wavel_slice(self):
-        if self.wavel_slice:  # {{{
-            pass
-        else:
-            self.set_wavel_slice()
-        return self.wavel_slice  # }}}
 
     def to_spectral_irrad(self, calibration_file=None, int_time=None):
         # {{{
@@ -599,15 +537,15 @@ class Spectrum(object):
 
     @property
     def spectrum(self):
-        return self.wavelengths, self.intensities
+        return self.wavel, self.inten
 
     @property
     def wavelengths(self):
-        return self._wavel[self.get_wavel_slice()]
+        return self.wavel
 
     @property
     def intensities(self):
-        return self._inten[self.get_wavel_slice()]
+        return self.inten
 
     @classmethod
     def from_file(cls, inten_wavel_file=None, **kwargs):
@@ -738,6 +676,48 @@ class Spectrum(object):
                 f"A close enough {wavel} wasn't found. Closest value is {wavel_array[closest_index]}."
             )
 
+    # }}}
+
+    @staticmethod
+    def slice_array(wavel, inten, indices, **kwargs):
+    # {{{
+        """
+        Takes in two arrays and returns them sliced according to
+        indices=(from_index, to_index). 
+
+        If the indeces are integers, it takes them to be literal indeces for the
+        array. If they are floats, then it'll assume they are wavelengths whose
+        literal indeces must be found before slicing.
+
+        This behaviour can be overriden by passing literal_indices=True or False
+        """
+
+        literal = kwargs['literal'] if 'literal' in kwargs else None
+        len_array = len(wavel)
+
+        if len(inten) != len_array:
+            raise ValueError(
+                "The arrays must be of equal length."
+            )
+
+        new_indices = []
+
+        for index in indices:
+            if index is None:
+                new_indices.append(index)
+            elif type(index) is int or literal is True:
+                if not (0 <= abs(index) <= len_array):
+                    raise IndexError(
+                        f"Invalid index of {index} for array of size {len_array}."
+                    )
+                else:
+                    new_indices.append(index)
+            elif type(index) in (float, np.float64) or literal is False:
+                index_wavel = Spectrum.find_wavel_index(wavel, wavel[index])
+                new_indices.append(index_wavel)
+
+        array_slice = slice(new_indices[0], new_indices[1])
+        return wavel[array_slice], inten[array_slice], array_slice
     # }}}
 
     @staticmethod
