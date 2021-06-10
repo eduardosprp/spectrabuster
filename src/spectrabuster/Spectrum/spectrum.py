@@ -649,15 +649,17 @@ class Spectrum(object):
     def __add__(self, other):
         # {{{
         """
-        Adds the first spectrum's intensities with the second's.
+        Adds the first spectrum's intensities with the second's. It can add spectrums
+        with numpy arrays and lists as well, as long as they are the same length as the
+        spectrum's wavelengths array.
 
         This operation will always return another spectrum with the added intensities.
         """
 
         if isinstance(other, Spectrum):
 
-            if np.isclose(self.wavelengths, other.wavelengths).all():
-                new_inten = self.intensities + other.intensities
+            if np.isclose(self.wavel, other.wavel).all():
+                new_inten = self.inten + other.inten
             else:
                 raise ValueError(
                     "The divided spectrums must have the same wavelengths array."
@@ -665,8 +667,8 @@ class Spectrum(object):
 
         elif isinstance(other, (np.ndarray, list)):
 
-            if len(other) == self.wavelengths.size or len(other) == 1:
-                new_inten = self.intensities + other
+            if len(other) == self.wavel.size or len(other) == 1:
+                new_inten = self.inten + other
 
             else:
                 raise (
@@ -677,7 +679,7 @@ class Spectrum(object):
 
         elif isinstance(other, (float, int)):
 
-            new_inten = self.intensities + other
+            new_inten = self.inten + other
 
         else:
             raise (TypeError("Incompatible types for addition."))
@@ -686,9 +688,10 @@ class Spectrum(object):
         self_params.update(
             {
                 "intensities": new_inten,
-                "wavelengths": self.wavelengths,
+                "wavelengths": self.wavel,
                 "from_index": None,
                 "to_index": None,
+                "backend": "none",
             }
         )
 
@@ -702,7 +705,7 @@ class Spectrum(object):
     def __sub__(self, other):
         # {{{
         if isinstance(other, Spectrum):
-            if np.isclose(self.wavelengths, other.wavelengths).all():
+            if np.isclose(self.wavel, other.wavel).all():
                 return self + np.negative(other.intensities)
             else:
                 raise ValueError(
@@ -719,15 +722,17 @@ class Spectrum(object):
     def __mul__(self, other):
         # {{{
         """
-        Multiplies the first spectrum's intensities by the second.
+        Multiplies the first spectrum's intensities by the second. It can
+        multiply spectrums with numpy arrays and lists as well, as long as they
+        are the same length as the spectrum's wavelengths array.
 
         This operation will always return another spectrum with the multiplied intensities.
         """
 
         if isinstance(other, Spectrum):
 
-            if np.isclose(self.wavelengths, other.wavelengths).all():
-                new_inten = self.intensities * other.intensities
+            if np.isclose(self.wavel, other.wavel).all():
+                new_inten = self.inten * other.inten
             else:
                 raise ValueError(
                     "The divided spectrums must have the same wavelengths array."
@@ -735,8 +740,8 @@ class Spectrum(object):
 
         elif isinstance(other, (np.ndarray, list)):
 
-            if len(other) == self.wavelengths.size or len(other) == 1:
-                new_inten = self.intensities * other
+            if len(other) == self.wavel.size or len(other) == 1:
+                new_inten = self.inten * other
 
             else:
                 raise (
@@ -747,7 +752,7 @@ class Spectrum(object):
 
         elif isinstance(other, (float, int)):
 
-            new_inten = self.intensities * other
+            new_inten = self.inten * other
 
         else:
             raise (TypeError("Incompatible types for multiplication."))
@@ -756,9 +761,10 @@ class Spectrum(object):
         self_params.update(
             {
                 "intensities": new_inten,
-                "wavelengths": self.wavelengths,
+                "wavelengths": self.wavel,
                 "from_index": None,
                 "to_index": None,
+                "backend": "none",
             }
         )
 
@@ -781,8 +787,8 @@ class Spectrum(object):
 
         if isinstance(other, Spectrum):
 
-            if np.isclose(self.wavelengths, other.wavelengths).all():
-                new_inten = self.intensities / other.intensities
+            if np.isclose(self.wavel, other.wavel).all():
+                new_inten = self.inten / other.inten
             else:
                 raise ValueError(
                     "The divided spectrums must have the same wavelengths array."
@@ -790,8 +796,8 @@ class Spectrum(object):
 
         elif isinstance(other, (np.ndarray, list)):
 
-            if len(other) == self.wavelengths.size or len(other) == 1:
-                new_inten = self.intensities / other
+            if len(other) == self.wavel.size or len(other) == 1:
+                new_inten = self.inten / other
 
             else:
                 raise (
@@ -802,7 +808,7 @@ class Spectrum(object):
 
         elif isinstance(other, (float, int)):
 
-            new_inten = self.intensities / other
+            new_inten = self.inten / other
 
         else:
             raise (TypeError("Incompatible types for division."))
@@ -811,9 +817,10 @@ class Spectrum(object):
         self_params.update(
             {
                 "intensities": new_inten,
-                "wavelengths": self.wavelengths,
+                "wavelengths": self.wavel,
                 "from_index": None,
                 "to_index": None,
+                "backend": "none",
             }
         )
 
@@ -832,10 +839,10 @@ class Spectrum(object):
         """
 
         if isinstance(key, (int, list, np.ndarray)):
-            return self.intensities[key]
+            return self.inten[key]
         elif isinstance(key, float):
-            int_index = self.find_wavel_index(self.wavelengths, key)
-            return self.intensities[int_index]
+            int_index = self.find_wavel_index(self.wavel, key)
+            return self.inten[int_index]
         else:
             raise TypeError(
                 "Invalid type for index. Please enter an integer, list, numpy array or a float."
@@ -853,17 +860,17 @@ class Spectrum(object):
         if isinstance(key, (list, tuple, np.ndarray)):
             # Melhorar isto. Adicionar gerenciamento de exceções
             key = [
-                self.find_wavel_index(self.wavelengths, x)
+                self.find_wavel_index(self.wavel, x)
                 if isinstance(x, float)
                 else x
                 for x in key
             ]
         elif isinstance(key, float):
-            key = self.find_wavel_index(self.wavelengths, key)
+            key = self.find_wavel_index(self.wavel, key)
         elif isinstance(key, int):
-            if abs(key) > self.wavelengths.size:
+            if abs(key) > self.wavel.size:
                 raise IndexError(
-                    f"Invalid index of {val} for wavelengths array of size {self.wavelengths.size}"
+                    f"Invalid index of {val} for wavelengths array of size {self.wavel.size}"
                 )
         else:
             raise TypeError(
@@ -883,7 +890,7 @@ class Spectrum(object):
                     f"Invalid value of {val} for intensity. Please enter something convertible to float."
                 )
 
-        self.intensities[key] = val
+        self.inten[key] = val
 
     # }}}
 
@@ -891,7 +898,7 @@ class Spectrum(object):
         raise NotImplementedError
 
     def __repr__(self):
-        return "Spectrum({}, {})".format(self.wavelengths, self.intensities)
+        return "Spectrum({}, {})".format(self.wavel, self.inten)
 
     def __len__(self):
-        return self.wavelengths.size
+        return self.wavel.size

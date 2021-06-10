@@ -26,6 +26,9 @@ class Device(object):
     class.
     """
 
+    def __init__(self, *args, **kwargs):
+        return None
+
     def measure(self, **kwargs):
         return None
 
@@ -54,3 +57,6 @@ def devices():
 
 def first_available_device():
    return Device()
+
+def get_name(self):
+    return "none"

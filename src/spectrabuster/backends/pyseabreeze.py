@@ -62,3 +62,6 @@ def devices():
 
 def first_available_device():
     return Device()
+
+def get_name(self):
+    return "pyseabreeze"
