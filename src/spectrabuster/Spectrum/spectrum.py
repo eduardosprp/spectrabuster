@@ -114,12 +114,15 @@ class Spectrum(object):
                 f"Invalid value of {self.samples} for the number of samples to average."
             )
 
-        if type(int_time) in (float, int):
-            self.device.set_int_time(int_time)
-        elif int_time is None:
+        if int_time is None:
             pass
         else:
-            raise TypeError(f"Invalid type {type(int_time)} for the integration time.")
+            try:
+                self.device.set_int_time(float(int_time))
+            except (TypeError, ValueError) as e:
+                raise ValueError(
+                    f"Invalid type or value of {int_time} for integration time"
+                )
 
         measure = partial(
             self.device.measure, correct_dc=correct_dc, correct_nl=correct_nl
@@ -292,9 +295,9 @@ class Spectrum(object):
         if initial is None:
             initial = self.int_time
 
-        min_int_time, max_int_time = self.device.int_time_limits()
+        min_int_time, max_int_time = self.device.int_time_limits
 
-        max_counts = self.device.max_intensity
+        max_counts = self.device.sat_intensity
         target_counts = abs((limits[1] + limits[0]) / 2) * max_counts
 
         int_time = initial
@@ -303,10 +306,10 @@ class Spectrum(object):
         print("Optimizing integration time...")
         i = 0
         while i < max_tries or inten_max == max_counts:
-            self._inten = self._measure_inten(
+            self.inten = self.measure_inten(
                 correct_nl=False, correct_dc=False, samples=1
             )
-            inten_max = np.amax(self.intensities)
+            inten_max = np.amax(self.inten)
             ratio = inten_max / target_counts
             print(f"{i} {self.int_time} {ratio} {inten_max}")
 
@@ -326,7 +329,7 @@ class Spectrum(object):
 
             i += 1
 
-        self._inten = self._measure_inten()
+        self.inten = self.measure_inten()[self.slice]
 
         return int_time  # just for convenience
 
