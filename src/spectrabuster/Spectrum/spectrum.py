@@ -72,7 +72,6 @@ class Spectrum(object):
         self.correct_dc = kwargs["correct_dc"] if "correct_dc" in kwargs else False
         self.samples = kwargs["samples"] if "samples" in kwargs else None
         self.int_time = int_time
-        self.int_time = kwargs["int_time"] if "int_time" in kwargs else None
 
         # Then the wavelengths and the intensities. It'll get each from the
         # device unless provided at the instantiation.
@@ -88,7 +87,7 @@ class Spectrum(object):
         if "intensities" in kwargs:
             self.inten = np.array(kwargs["intensities"])
         elif self.backend.features["measure"]:
-            self.inten = self.measure_inten()
+            self.inten = self.measure_inten(int_time=self.int_time)
         else:
             raise RuntimeError(
                 f"No intensities array passed, and the {self.backend} cannot make masurements."
@@ -115,6 +114,7 @@ class Spectrum(object):
                 f"Invalid value of {self.samples} for the number of samples to average."
             )
 
+        print(int_time)
         if type(int_time) in (float, int):
             self.device.set_int_time(int_time)
         elif int_time is None:
@@ -190,7 +190,9 @@ class Spectrum(object):
         Spectrum object for the irradiance spectrum.
 
         It also has to be a file with the wavelengths and spectral sensitivity,
-        by the way.
+        by the way. And note that this function assumes that the current
+        Spectrum and the calibration file have the same wavelengths array,
+        maybe just sliced differently
         """
 
         if not calibration_file:
@@ -205,30 +207,30 @@ class Spectrum(object):
         elif not int_time and self.int_time:
             int_time = self.int_time
 
-        calib_wavelengths, calib_intensities, _ = self._read_file(calibration_file)
+        calib_wavel, calib_inten, _ = self._read_file(calibration_file)
 
-        if self._wavel.size > calib_wavelengths.size:
-            from_index = self.find_wavel_index(self._wavel, calib_wavelengths[0])
-            to_index = self.find_wavel_index(self._wavel, calib_wavelengths[-1])
+        if self.wavel.size > calib_wavel.size:
+            from_index = self.find_wavel_index(self.wavel, calib_wavel[0])
+            to_index = self.find_wavel_index(self.wavel, calib_wavel[-1])
 
-            wavel_array = self._wavel[from_index : to_index + 1]
-            inten_array = self._inten[from_index : to_index + 1]
+            wavel_array = self.wavel[from_index : to_index + 1]
+            inten_array = self.inten[from_index : to_index + 1]
 
-        elif calib_wavelengths.size > self._wavel.size:
-            from_index = self.find_wavel_index(calib_wavelengths, self._wavel[0])
-            to_index = self.find_wavel_index(calib_wavelengths, self._wavel[-1])
+        elif calib_wavel.size > self.wavel.size:
+            from_index = self.find_wavel_index(calib_wavel, self.wavel[0])
+            to_index = self.find_wavel_index(calib_wavel, self.wavel[-1])
 
-            calib_intensities = calib_intensities[from_index : to_index + 1]
-            wavel_array = calib_wavelengths[from_index : to_index + 1]
-            inten_array = self._inten
+            calib_inten = calib_inten[from_index : to_index + 1]
+            wavel_array = calib_wavel[from_index : to_index + 1]
+            inten_array = self.inten
 
         else:
-            inten_array = self._inten
-            wavel_array = self._wavel
+            inten_array = self.inten
+            wavel_array = self.wavel
 
         apply_calibration = lambda counts, calib: counts / (int_time * calib * 0.000001)
 
-        inten_array = apply_calibration(inten_array, calib_intensities)
+        inten_array = apply_calibration(inten_array, calib_inten)
         return Spectrum(
             intensities=inten_array,
             wavelengths=wavel_array,

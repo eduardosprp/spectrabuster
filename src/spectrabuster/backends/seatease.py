@@ -18,7 +18,7 @@ class Device(object):
         # Yes, I am aware that having a self._device inside the
         # Device class can be somewhat confusing
         if device_obj is None:
-            self._device = Spectrometer.from_first_available()
+            self._device = Spectrometer(list_devices()[0])
         else:
             self._device = Spectrometer(device_obj)
 
