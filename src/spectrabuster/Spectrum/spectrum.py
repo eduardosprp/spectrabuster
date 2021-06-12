@@ -114,7 +114,6 @@ class Spectrum(object):
                 f"Invalid value of {self.samples} for the number of samples to average."
             )
 
-        print(int_time)
         if type(int_time) in (float, int):
             self.device.set_int_time(int_time)
         elif int_time is None:
@@ -273,7 +272,7 @@ class Spectrum(object):
                 for wavel, irrad in zip(*self.spectrum)
             ]
         )
-        self.UV_index = round(0.04 * trapz(weighted_irrad, self.wavelengths), 2)
+        self.UV_index = round(0.04 * trapz(weighted_irrad, self.wavel), 2)
 
         return self.UV_index  # just for convenience
 
@@ -343,18 +342,18 @@ class Spectrum(object):
         if not isinstance(other, Spectrum):
             raise TypeError("join takes only spectra as arguments")
 
-        self_wavel_max = self.wavelengths[-1]
-        self_wavel_min = self.wavelengths[0]
-        other_wavel_max = other.wavelengths[-1]
-        other_wavel_min = other.wavelengths[0]
+        self_wavel_max = self.wavel[-1]
+        self_wavel_min = self.wavel[0]
+        other_wavel_max = other.wavel[-1]
+        other_wavel_min = other.wavel[0]
 
-        # other.wavelengths starts before self.wavelengths ends
-        if np.isclose(other.wavelengths, self_wavel_max).any():
+        # other.wavel starts before self.wavel ends
+        if np.isclose(other.wavel, self_wavel_max).any():
 
             # NOTE: These variables are indexes referring to self.wavelengths and
             # other.wavelengths respectively!
-            start_overlap = np.argmax(np.isclose(self.wavelengths, other_wavel_min))
-            end_overlap = np.argmax(np.isclose(other.wavelengths, self_wavel_max))
+            start_overlap = np.argmax(np.isclose(self.wavel, other_wavel_min))
+            end_overlap = np.argmax(np.isclose(other.wavel, self_wavel_max))
 
             Spectrum._warn(
                 f"WARNING: The spectra overlap from {other_wavel_min} to {self_wavel_max}"
@@ -362,53 +361,56 @@ class Spectrum(object):
 
             # For some god forsaken reason np.concatenate will only work if you pass
             # a tuple of arrays...
-            new_wavels = np.copy(self.wavelengths)
+            new_wavels = np.copy(self.wavel)
             new_wavels = np.concatenate(
-                (new_wavels, np.copy(other.wavelengths[end_overlap + 1 :]))
+                (new_wavels, np.copy(other.wavel[end_overlap + 1 :]))
             )
 
-            new_intens = np.copy(self.intensities)
+            new_intens = np.copy(self.inten)
             new_intens = np.concatenate(
-                (new_intens, np.copy(other.intensities[end_overlap + 1 :]))
+                (new_intens, np.copy(other.inten[end_overlap + 1 :]))
             )
 
         # self.wavelengths starts before other.wavelengths ends
-        elif np.isclose(self.wavelengths, other_wavel_max).any():
+        elif np.isclose(self.wavel, other_wavel_max).any():
 
-            # NOTE: These variables are indexes referring to other.wavelengths and
-            # self.wavelengths respectively!
-            start_overlap = np.argmax(np.isclose(other.wavelengths, self_wavel_min))
-            end_overlap = np.argmax(np.isclose(self.wavelengths, other_wavel_max))
+            # NOTE: These variables are indexes referring to other.wavel and
+            # self.wavel respectively!
+            start_overlap = np.argmax(np.isclose(other.wavel, self_wavel_min))
+            end_overlap = np.argmax(np.isclose(self.wavel, other_wavel_max))
 
             Spectrum._warn(
                 f"WARNING: The spectra overlap from {self_wavel_min} to {other_wavel_max}"
             )
 
             # You see, the preference is always given to self
-            new_wavels = np.copy(other.wavelengths[:start_overlap])
-            new_wavels = np.concatenate((new_wavels, np.copy(self.wavelengths)))
+            new_wavels = np.copy(other.wavel[:start_overlap])
+            new_wavels = np.concatenate((new_wavels, np.copy(self.wavel)))
 
-            new_intens = np.copy(other.intensities[:start_overlap])
-            new_intens = np.concatenate((new_intens, np.copy(self.intensities)))
+            new_intens = np.copy(other.inten[:start_overlap])
+            new_intens = np.concatenate((new_intens, np.copy(self.inten)))
 
+        # There is no overlap
         else:
 
             if other_wavel_min > self_wavel_min:
+
                 new_wavels = np.concatenate(
-                    (np.copy(self.wavelengths), np.copy(other.wavelengths))
+                    (np.copy(self.wavel), np.copy(other.wavel))
                 )
 
                 new_intens = np.concatenate(
-                    (np.copy(self.intensities), np.copy(other.intensities))
+                    (np.copy(self.inten), np.copy(other.inten))
                 )
 
             elif other_wavel_min < self_wavel_min:
+
                 new_wavels = np.concatenate(
-                    (np.copy(other.wavelengths), np.copy(self.wavelengths))
+                    (np.copy(other.wavel), np.copy(self.wavel))
                 )
 
                 new_intens = np.concatenate(
-                    (np.copy(other.intensities), np.copy(self.intensities))
+                    (np.copy(other.inten), np.copy(self.inten))
                 )
 
         self_params = vars(self).copy()
@@ -418,6 +420,7 @@ class Spectrum(object):
                 "wavelengths": new_wavels,
                 "from_index": None,
                 "to_index": None,
+                "backend": "none",
             }
         )
 
