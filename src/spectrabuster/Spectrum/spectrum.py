@@ -434,7 +434,7 @@ class Spectrum(object):
     # Esse um é para que o animal lembre de consertar quando saporra
     # inevitavelmente der erro
     @property
-    def max_counts1(self):
+    def max_counts(self):
         return np.amax(self.inten)
 
     @property
