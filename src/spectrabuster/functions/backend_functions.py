@@ -1,6 +1,10 @@
 from importlib import import_module
 from importlib.util import find_spec
 
+"""
+These are functions related to the implementation and use of different
+backends for making measurements.
+"""
 
 def use(name):
     """

@@ -209,7 +209,7 @@ class Spectrum(object):
         elif not int_time and self.int_time:
             int_time = self.int_time
 
-        calib_wavel, calib_inten, _ = self._read_file(calibration_file)
+        calib_wavel, calib_inten, _ = sbf.read_file(calibration_file)
 
         if self.wavel.size > calib_wavel.size:
             from_index = self.find_wavel_index(self.wavel, calib_wavel[0])
@@ -431,8 +431,6 @@ class Spectrum(object):
 
     # }}}
 
-    # Esse um é para que o animal lembre de consertar quando saporra
-    # inevitavelmente der erro
     @property
     def max_counts(self):
         return np.amax(self.inten)
@@ -485,13 +483,13 @@ class Spectrum(object):
         new_kwargs = {}
 
         if inten_wavel_file:
-            wavel_array, inten_array, new_kwargs = cls._read_file(inten_wavel_file)
+            wavel_array, inten_array, new_kwargs = sbf.read_file(inten_wavel_file)
 
         if wavel_file:
-            wavel_array, _, new_kwargs = cls._read_file(wavel_file)
+            wavel_array, _, new_kwargs = sbf.read_file(wavel_file)
 
         if inten_file:
-            inten_array, _, new_kwargs = cls._read_file(inten_file)
+            inten_array, _, new_kwargs = sbf.read_file(inten_file)
 
         if not inten_file and not inten_wavel_file and not wavel_file:
             cls._warn(
@@ -509,48 +507,6 @@ class Spectrum(object):
 
     # }}}
 
-    @staticmethod
-    def _read_file(text_file):
-        # {{{
-        """
-        Used internally by the class method from_file. Returns as many numpy arrays
-        as there are columns in the file, and a dictionary with whatever comments
-        (prefaced by #) it finds.
-        """
-
-        dict_args = {}
-        col1 = []
-        col2 = []
-
-        with open(text_file, "r") as arq:
-
-            # Generator for the lines in the archive
-            gen_lines = (line.split() for line in arq)
-
-            for line_split in gen_lines:
-
-                if (
-                    line_split[0] == "#"
-                ):  # comment, presumably containing arguments for __init__
-                    dict_args[line_split[1]] = line_split[3]
-                elif (
-                    len(line_split) > 1
-                ):  # 2 or more columns. Will ignore anything after the second column
-                    col1.append(float(line_split[0]))
-                    col2.append(float(line_split[1]))
-                elif len(line_split) == 1:  # 1 column
-                    col1.append(float(line_split[0]))
-
-            if not dict_args and not col1 and not col2:
-                # Check if they're all empty
-
-                raise RuntimeError(
-                    f"No arguments, wavelengths and intensities found in {text_file}. Please check if this is a valid file."
-                )
-
-            return np.array(col1), np.array(col2), dict_args
-
-    # }}}
 
     @staticmethod
     def weight_irrad(wavel, irrad, from_wavel=286.0):
