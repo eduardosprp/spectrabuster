@@ -263,23 +263,9 @@ class Spectrum(object):
 
     # }}}
 
-    def calc_uv_index(self, from_wavel=286.0):
-        # {{{
-        """
-        Calculates the UV index based on Mckinley-Diffey's action spectra for erythema.
-        """
-
-        weighted_irrad = np.array(
-            [
-                self.weight_irrad(wavel, irrad, from_wavel)
-                for wavel, irrad in zip(*self.spectrum)
-            ]
-        )
-        self.UV_index = round(0.04 * trapz(weighted_irrad, self.wavel), 2)
-
-        return self.UV_index  # just for convenience
-
-    # }}}
+    def calc_uv_index(self, from_wavel=286.0, to_wavel=400.0):
+        self.UV_index = sbf.calc_uv_index(self.spectrum, from_wavel, to_wavel)
+        return self.UV_index
 
     def optimize_int_time(self, initial=None, limits=(0.8, 1), max_tries=5):
         # {{{
@@ -504,25 +490,6 @@ class Spectrum(object):
         new_kwargs.update(kwargs)
 
         return cls(**new_kwargs)
-
-    # }}}
-
-
-    @staticmethod
-    def weight_irrad(wavel, irrad, from_wavel=286.0):
-        # {{{
-        """
-        Simple implementation of Mckinley-Diffey's action spectrum.
-        """
-
-        if from_wavel <= wavel < 298:
-            return irrad
-        elif 298 <= wavel < 328:
-            return exp(0.216 * (298 - wavel)) * irrad
-        elif 328 <= wavel < 400:
-            return exp(0.034 * (139 - wavel)) * irrad
-        else:
-            return 0
 
     # }}}
 
@@ -862,7 +829,7 @@ class Spectrum(object):
         raise NotImplementedError
 
     def __repr__(self):
-        return "Spectrum({}, {})".format(self.wavel, self.inten)
+        return "Spectrum(intensities={}, wavelengths={})".format(self.wavel, self.inten)
 
     def __len__(self):
         return self.wavel.size
