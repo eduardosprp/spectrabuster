@@ -86,3 +86,6 @@ def read_csv(text_file):
         "This function isn't implemented yet"
     )
 # }}}
+
+def write_file():
+    raise NotImplementedError

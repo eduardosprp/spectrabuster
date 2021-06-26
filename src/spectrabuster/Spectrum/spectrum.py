@@ -264,8 +264,10 @@ class Spectrum(object):
     # }}}
 
     def calc_uv_index(self, from_wavel=286.0, to_wavel=400.0):
+# {{{
         self.UV_index = sbf.calc_uv_index(self.spectrum, from_wavel, to_wavel)
         return self.UV_index
+# }}}
 
     def optimize_int_time(self, initial=None, limits=(0.8, 1), max_tries=5):
         # {{{

@@ -35,15 +35,7 @@ def weight_irrad(spec, from_wavel=286.0, to_wavel=400.0):
     Mckinley-Diffey's action spectrum for erythema.
     """
 
-    if type(spec) in (tuple, list, np.ndarray):
-        pass
-    # Hacky way to avoid a circular import
-    elif "Spectrum" in repr(spec):
-        spec = spec.spectrum
-    else:
-        raise ValueError(
-            "Please pass an interable type or a Spectrum instance to weight_irrad."
-        )
+    spec, _ = _type_check(spec)
 
     return np.array(
         [
@@ -55,14 +47,56 @@ def weight_irrad(spec, from_wavel=286.0, to_wavel=400.0):
 def calc_uv_index(spec, from_wavel=286.0, to_wavel=400.0):
     # {{{
     """
-    Calculates the UV index based on Mckinley-Diffey's action spectra for erythema.
+    Calculates the UV index based on Mckinley-Diffey's action spectra for
+    erythema. Note that during this entire process spectrabuster assumes the
+    intensities array has units of mW/m2/nm. Making the unit separately
+    specifiable is a goal for the future.
     """
 
     weighted_irrad = weight_irrad(spec, from_wavel, to_wavel)
 
+    # this 0.04 hinges on the assumption that the unit being used is mW/m2
     UV_index = round(0.04 * trapz(weighted_irrad, spec[0]), 2)
 
     return UV_index
     # }}}
 
+def spectral_irrad(spec, calib, int_time=None):
+# {{{
+    """
+    Calculates the spectral irradiance array from the intensities spec[1] and
+    according to some calibration array. The calibration array must be the same
+    length as the wavelengths and intensities arrays. In the future I may make
+    it possible to pass a tuple of arrays for the calibration, and the
+    function'll be smart enough to do the expected interpolation and slicing.
+
+
+    If no integration time is passed, it assumes the intensities arrays is
+    already in counts/s.
+    """
+
+    spec, int_time = _type_check(spec, int_time)
+
+    wavel = spec[0]
+    inten = count_rate(spec, int_time) if int_time is not None else spec[1]
+
+    # Termina essa merda aí ow   
+# }}}
+
+def count_rate(spec, int_time=None):
+# {{{
+    """
+    Returns the intensities array of spec divided by the specified integration
+    time, which it assumes to be in microsseconds. 
+
+    This function seems pretty useless now but in the future it'll justify its
+    existence by supporting specifying the unit of the integration time.
+    """
+
+    spec, int_time = _type_check(spec, int_time)
+
+    inten = spec[1]
+
+    return inten / (int_time * 0.000001)
+# }}}
 
