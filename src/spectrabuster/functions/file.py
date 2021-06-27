@@ -1,9 +1,9 @@
 import numpy as np
 
 """
-Functions related to reading and writing text files. read_file is the
-most general function, which calls any of the other "read" functions
-depending on how the file is formatted.
+Functions related to reading and writing text files. read_file is the most
+general function, which calls any of the other "read" functions depending on
+how the file is formatted.  
 """
 
 def read_file(text_file, file_type=None):
@@ -42,9 +42,8 @@ def read_file(text_file, file_type=None):
 def read_dat(text_file):
 # {{{
     """
-    Returns as many numpy arrays as there are tab-separated columns in
-    the file, and a dictionary with whatever arguments (prefaced by #)
-    it finds
+    Returns as many numpy arrays as there are tab-separated columns in the
+    file, and a dictionary with whatever arguments (prefaced by #) it finds
     """
 
     dict_args = {}

@@ -46,7 +46,7 @@ class Spectrum(object):
         try:
             self.backend = sbf.get_backend(backend)
         except RuntimeError:
-            self._warn("No backend specified. Using none by default.")
+            sbf._warn("No backend specified. Using none by default.")
             self.backend = sbf.get_backend("none")
 
         # Then get the device
@@ -94,8 +94,9 @@ class Spectrum(object):
             )
 
         # Finally, slice the intensities and wavelengths arrays.
-        self.wavel, self.inten, self.slice = self.slice_array(
-            self.wavel, self.inten, (self.from_index, self.to_index)
+        self.wavel, self.inten, self.slice = sbf.slice_array(
+            (self.wavel, self.inten), 
+            (self.from_index, self.to_index),
         )
 
     # }}}
@@ -144,7 +145,7 @@ class Spectrum(object):
         overwrite = kwargs["overwrite"] if "overwrite" in kwargs else None
         if path.exists(file_path):
             if overwrite:
-                self._warn(f"WARNING: File {file_path} exists. Overwriting it.")
+                sbf._warn(f"WARNING: File {file_path} exists. Overwriting it.")
             else:
                 raise RuntimeError(
                     f"File {file_path} already exists. Pass 'overwrite=True' if you are sure you want to overwrite it."
@@ -185,7 +186,7 @@ class Spectrum(object):
 
     # }}}
 
-    def to_spectral_irrad(self, calibration_file=None, int_time=None):
+    def spectral_irrad(self, calibration_file=None, int_time=None):
         # {{{
         """
         Applies the spectral irradiance calibration and returns another
@@ -211,56 +212,46 @@ class Spectrum(object):
 
         calib_wavel, calib_inten, _ = sbf.read_file(calibration_file)
 
-        if self.wavel.size > calib_wavel.size:
-            from_index = self.find_wavel_index(self.wavel, calib_wavel[0])
-            to_index = self.find_wavel_index(self.wavel, calib_wavel[-1])
-
-            wavel_array = self.wavel[from_index : to_index + 1]
-            inten_array = self.inten[from_index : to_index + 1]
-
-        elif calib_wavel.size > self.wavel.size:
-            from_index = self.find_wavel_index(calib_wavel, self.wavel[0])
-            to_index = self.find_wavel_index(calib_wavel, self.wavel[-1])
-
-            calib_inten = calib_inten[from_index : to_index + 1]
-            wavel_array = calib_wavel[from_index : to_index + 1]
-            inten_array = self.inten
-
-        else:
-            inten_array = self.inten
-            wavel_array = self.wavel
-
-        apply_calibration = lambda counts, calib: counts / (int_time * calib * 0.000001)
-
-        inten_array = apply_calibration(inten_array, calib_inten)
-        return Spectrum(
-            intensities=inten_array,
-            wavelengths=wavel_array,
-            int_time=int_time,
-            from_index=self.from_index,
-            to_index=self.to_index,
+        spec_wavel, spec_inten = sbf.spectral_irrad(
+            (self.wavelengths, self.intensities),
+            (calib_wavel, calib_inten),
+            self.int_time,
         )
 
         self_params = vars(self).copy()
-        self_params.update({"intensities": inten_array, "wavelengths": wavel_array})
+        self_params.update({
+            "intensities": spec_inten, 
+            "wavelengths": spec_wavel,
+            "backend":"none",
+        })
 
         return Spectrum(**self_params)
-
     # }}}
 
-    def to_count_rate(self):
+    def count_rate(self):
         # {{{
         """
         Divides the spectrum by its integration time and that's it.
         """
 
         if self.int_time:
-            return self / (self.int_time * 0.000001)
+            spec_inten = sbf.count_rate(
+                (self.wavelengths, self.intensities),
+                self.int_time,
+            )
         else:
             raise ValueError(
                 "Integration time undefined for calculation of count rate."
             )
 
+        self_params = vars(self).copy()
+        self_params.update({
+            "intensities": spec_inten, 
+            "wavelengths": self.wavelengths,
+            "backend":"none",
+        })
+
+        return Spectrum(**self_params)
     # }}}
 
     def calc_uv_index(self, from_wavel=286.0, to_wavel=400.0):
@@ -346,7 +337,7 @@ class Spectrum(object):
             start_overlap = np.argmax(np.isclose(self.wavel, other_wavel_min))
             end_overlap = np.argmax(np.isclose(other.wavel, self_wavel_max))
 
-            Spectrum._warn(
+            sbf._warn(
                 f"WARNING: The spectra overlap from {other_wavel_min} to {self_wavel_max}"
             )
 
@@ -370,7 +361,7 @@ class Spectrum(object):
             start_overlap = np.argmax(np.isclose(other.wavel, self_wavel_min))
             end_overlap = np.argmax(np.isclose(self.wavel, other_wavel_max))
 
-            Spectrum._warn(
+            sbf._warn(
                 f"WARNING: The spectra overlap from {self_wavel_min} to {other_wavel_max}"
             )
 
@@ -480,7 +471,7 @@ class Spectrum(object):
             inten_array, _, new_kwargs = sbf.read_file(inten_file)
 
         if not inten_file and not inten_wavel_file and not wavel_file:
-            cls._warn(
+            sbf._warn(
                 "WARNING: Instantiating a spectrum with function from_file, but no file path arguments were passed."
             )
 
@@ -492,85 +483,6 @@ class Spectrum(object):
         new_kwargs.update(kwargs)
 
         return cls(**new_kwargs)
-
-    # }}}
-
-    @staticmethod
-    def find_wavel_index(wavel_array, wavel, margin=0.5):
-        # {{{
-        """
-        Attempts to find 'wavel' in 'wavel_array'. Will try using the closest wavelength
-        at most 0.5 units from 'wavel'
-        """
-
-        array_diffs = np.abs(wavel_array - wavel)
-        closest_index = array_diffs.argmin()
-
-        if np.isclose(wavel_array[closest_index], wavel):
-            return closest_index
-
-        elif array_diffs[closest_index] < 0.5:
-            Spectrum._warn(
-                f"Exact match for {wavel} not found. Using {wavel_array[closest_index]} instead."
-            )
-            return closest_index
-
-        else:
-            raise ValueError(
-                f"A close enough {wavel} wasn't found. Closest value is {wavel_array[closest_index]}."
-            )
-
-    # }}}
-
-    @staticmethod
-    def slice_array(wavel, inten, indices, **kwargs):
-        # {{{
-        """
-        Takes in two arrays and returns them sliced according to
-        indices=(from_index, to_index).
-
-        If the indeces are integers, it takes them to be literal indeces for the
-        array. If they are floats, then it'll assume they are wavelengths whose
-        literal indeces must be found before slicing.
-
-        This behaviour can be overriden by passing literal_indices=True or False
-        """
-
-        literal = kwargs["literal"] if "literal" in kwargs else None
-        len_array = len(wavel)
-
-        if len(inten) != len_array:
-            raise ValueError("The arrays must be of equal length.")
-
-        new_indices = []
-
-        for index in indices:
-            if index is None:
-                new_indices.append(index)
-            elif type(index) is int or literal is True:
-                if not (0 <= abs(index) <= len_array):
-                    raise IndexError(
-                        f"Invalid index of {index} for array of size {len_array}."
-                    )
-                else:
-                    new_indices.append(index)
-            elif type(index) in (float, np.float64) or literal is False:
-                index_wavel = Spectrum.find_wavel_index(wavel, index)
-                new_indices.append(index_wavel)
-
-        array_slice = slice(new_indices[0], new_indices[1])
-        return wavel[array_slice], inten[array_slice], array_slice
-
-    # }}}
-
-    @staticmethod
-    def _warn(string):
-        # {{{
-        """
-        Warnings can be disabled by setting the class variable 'opt_warnings' to False
-        """
-
-        print(string)
 
     # }}}
 
@@ -774,7 +686,7 @@ class Spectrum(object):
         if isinstance(key, (int, list, np.ndarray)):
             return self.inten[key]
         elif isinstance(key, float):
-            int_index = self.find_wavel_index(self.wavel, key)
+            int_index = sbf.find_wavel_index(self.wavel, key)
             return self.inten[int_index]
         else:
             raise TypeError(
@@ -793,13 +705,13 @@ class Spectrum(object):
         if isinstance(key, (list, tuple, np.ndarray)):
             # Melhorar isto. Adicionar gerenciamento de exceções
             key = [
-                self.find_wavel_index(self.wavel, x)
+                sbf.find_wavel_index(self.wavel, x)
                 if isinstance(x, float)
                 else x
                 for x in key
             ]
         elif isinstance(key, float):
-            key = self.find_wavel_index(self.wavel, key)
+            key = sbf.find_wavel_index(self.wavel, key)
         elif isinstance(key, int):
             if abs(key) > self.wavel.size:
                 raise IndexError(
