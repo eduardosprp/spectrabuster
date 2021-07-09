@@ -1,3 +1,6 @@
+# This repository will no longer be updated, as I've migrated all my projects to Codeberg.
+All futher updates will only be available on https://codeberg.org/eduardotogpi/spectrabuster
+
 # spectrabuster
 
 Tools for simplifying the processing and storing of spectrums acquired using python-seabreeze. Basically consists of the Spectrum class, which provides an easy way to abtract away much of the overhead associated with dealing with large quantities of irradiance spectrums. It is meant primarily to be scalable and easy to use.
